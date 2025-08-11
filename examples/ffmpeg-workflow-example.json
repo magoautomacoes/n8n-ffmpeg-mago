@@ -1,0 +1,193 @@
+{
+  "name": "FFmpeg Video Processing Example",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-video",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "video-processing"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Exemplo de workflow para processamento de vídeo com FFmpeg\n// Este workflow demonstra como usar o FFmpeg instalado no container n8n\n\n// Dados de entrada esperados:\n// {\n//   \"videoUrl\": \"https://example.com/video.mp4\",\n//   \"outputFormat\": \"mp4\",\n//   \"quality\": \"medium\"\n// }\n\nconst inputData = $input.first().json;\n\n// Validação dos dados de entrada\nif (!inputData.videoUrl) {\n  throw new Error('URL do vídeo é obrigatória');\n}\n\n// Configurações de qualidade\nconst qualitySettings = {\n  low: '-crf 28 -preset fast',\n  medium: '-crf 23 -preset medium',\n  high: '-crf 18 -preset slow'\n};\n\nconst quality = inputData.quality || 'medium';\nconst outputFormat = inputData.outputFormat || 'mp4';\nconst ffmpegOptions = qualitySettings[quality] || qualitySettings.medium;\n\n// Gerar nome único para o arquivo\nconst timestamp = new Date().getTime();\nconst inputFileName = `input_${timestamp}.mp4`;\nconst outputFileName = `output_${timestamp}.${outputFormat}`;\n\nreturn {\n  inputUrl: inputData.videoUrl,\n  inputFileName,\n  outputFileName,\n  ffmpegOptions,\n  quality,\n  outputFormat,\n  timestamp\n};"
+      },
+      "id": "prepare-data",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "url": "={{ $json.inputUrl }}",
+        "options": {
+          "filename": "={{ $json.inputFileName }}"
+        }
+      },
+      "id": "download-video",
+      "name": "Download Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "command": "ffmpeg -i {{ $json.inputFileName }} {{ $json.ffmpegOptions }} {{ $json.outputFileName }} -y",
+        "options": {
+          "cwd": "/tmp"
+        }
+      },
+      "id": "process-video",
+      "name": "Process Video with FFmpeg",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "binaryData": true,
+        "fileToUpload": "={{ $json.outputFileName }}",
+        "options": {
+          "filename": "={{ $json.outputFileName }}"
+        }
+      },
+      "id": "upload-result",
+      "name": "Upload Processed Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar resposta final\nconst inputData = $('Prepare Data').first().json;\nconst downloadData = $('Download Video').first().json;\nconst processData = $('Process Video with FFmpeg').first().json;\nconst uploadData = $('Upload Processed Video').first().json;\n\n// Verificar se o processamento foi bem-sucedido\nif (processData.exitCode !== 0) {\n  throw new Error(`FFmpeg falhou: ${processData.stderr}`);\n}\n\nreturn {\n  success: true,\n  message: 'Vídeo processado com sucesso',\n  originalUrl: inputData.inputUrl,\n  processedUrl: uploadData.url || 'Arquivo processado disponível localmente',\n  quality: inputData.quality,\n  outputFormat: inputData.outputFormat,\n  processingTime: new Date().toISOString(),\n  ffmpegOutput: processData.stdout,\n  fileSize: {\n    input: downloadData.fileSize,\n    output: uploadData.fileSize\n  }\n};"
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Video": {
+      "main": [
+        [
+          {
+            "node": "Process Video with FFmpeg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Video with FFmpeg": {
+      "main": [
+        [
+          {
+            "node": "Upload Processed Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Processed Video": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "ffmpeg-video-processing",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "ffmpeg",
+      "name": "ffmpeg"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "video-processing",
+      "name": "video-processing"
+    }
+  ]
+}
