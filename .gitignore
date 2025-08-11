@@ -1,0 +1,61 @@
+# Arquivos temporários do sistema
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# Logs
+*.log
+logs/
+
+# Arquivos de backup
+*.bak
+*.backup
+*~
+
+# Arquivos de configuração local
+.env
+.env.local
+.env.production
+
+# Arquivos de cache
+.cache/
+*.cache
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos de build
+dist/
+build/
+node_modules/
+
+# Arquivos de teste
+test-results/
+coverage/
+
+# Arquivos de vídeo temporários (para testes)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+*.mp3
+*.wav
+*.aac
+
+# Arquivos de dados temporários
+*.json.bak
+*.yaml.bak
+
+# Arquivos de lock
+package-lock.json
+yarn.lock
+
+# Arquivos de Docker
+.dockerignore
+docker-compose.override.yml
